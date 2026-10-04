@@ -1,0 +1,6 @@
+chat:
+  quick_prompts:
+    coda:
+      - "What repos are available? Give me a summary of each."
+      - "What are your capabilities?"
+      - "What are the open PRs and issues?"

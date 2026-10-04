@@ -1,0 +1,18 @@
+# Coda Repository Configuration
+# ==============================
+#
+# Define which repositories Coda should clone and monitor.
+# Each repo is cloned to /repos/<name>/ and synced periodically.
+#
+# Format:
+#   repos:
+#     - url: https://github.com/org/repo-name
+#       branch: main                          # default branch to track
+
+repos:
+  - url: https://github.com/agno-agi/agno
+    branch: main
+  - url: https://github.com/agno-agi/coda
+    branch: main
+  - url: https://github.com/agno-agi/docs
+    branch: main

@@ -1,0 +1,140 @@
+# Coda
+
+A code companion that lives in Slack. Understands code by searching it directly on disk, reviews PRs and branches, triages issues, learns team conventions, and contributes code via isolated git worktrees.
+
+The canonical specification is `docs/SPEC.md`. All other documentation derives from it.
+
+## Architecture
+
+- Team definition: `coda/team.py` (Coda team leader, Coordinate mode)
+- Member agents: `coda/agents/coder.py` (Coder), `coda/agents/explorer.py` (Explorer), `coda/agents/planner.py` (Planner), `coda/agents/researcher.py` (Researcher), `coda/agents/triager.py` (Triager)
+- Shared settings: `coda/settings.py` (DB, REPOS_DIR, learnings KB)
+- API server: `app/main.py` (FastAPI + AgentOS + Slack interface)
+- Custom tools: `coda/tools/git.py` (GitTools)
+- GitHub tools: Agno built-in `GithubTools` (scoped per agent)
+- Database: PostgreSQL + pgvector (for learnings only, not code indexing)
+- Repos: `/repos` (cloned at startup, searched on disk; persistent volume in local dev, ephemeral in production)
+
+## Team Structure
+```
+Coda (Team, Coordinate, gpt-5.6-sol)
+├── Coder — writes code in worktrees, opens PRs
+├── Explorer — searches code, traces flows, reviews PRs/branches (read-only)
+├── Planner — breaks feature requests into ordered GitHub issues
+├── Researcher — searches the web for docs, errors, APIs, best practices
+├── Triager — categorizes, labels, comments on, and closes issues
+└── [leader responds directly for greetings/simple questions]
+```
+
+- **Coda (leader):** Triages requests, delegates to specialists, synthesizes results
+- **Coder:** CodingTools (full), GitTools, GithubTools (write), ReasoningTools
+- **Explorer:** CodingTools (read-only), GitTools, GithubTools (read-only), ReasoningTools
+- **Planner:** CodingTools (read-only), GitTools (read-only), GithubTools (issue creation), ReasoningTools
+- **Researcher:** ParallelTools (web search + extract), ReasoningTools
+- **Triager:** CodingTools (read-only), GitTools (read-only), GithubTools (issue management), ReasoningTools
+
+All agents share the same `coda_learnings` knowledge base via individual LearningMachine instances.
+
+## Key Concepts
+
+- **Coordinate mode:** Leader picks the right specialist, delegates with context, synthesizes results. Triager handles issue management; Explorer handles code exploration and PR review; Coder handles code changes.
+- **CodingTools:** file read/write/edit, shell, grep, find, ls (Coder: all=True, Explorer: read-only)
+- **GitTools:** git log/diff/blame/show, repo listing, branch listing/diffing, worktree lifecycle (create/list/remove), safe push (coda/* only)
+- **GithubTools:** Agno built-in — PR read/review/create/comment, issues read/comment, code search (scoped via include_tools)
+- **ReasoningTools:** `think` tool for complex reasoning chains
+- **LearningMachine:** saves and retrieves team conventions, patterns, gotchas (AGENTIC mode)
+- **Agentic Memory:** tracks user preferences and observations (team-level only)
+- **Worktrees:** each coding task gets a `coda/*` branch via `git worktree add`
+- **Scheduled Tasks:** repo sync (every 5 min), daily issue triage (4 AM UTC), daily digest (8 AM UTC)
+- **Daily Issue Triage:** uses the Triager agent (fetch → Triager agent → Slack). The same agent that handles interactive triage runs the daily scan — categorizes, labels, comments, but does NOT close issues during automated runs. Config: `TRIAGE_CHANNEL` env var.
+- **Daily Digest:** morning activity summary — merged PRs, open PRs, new issues, stale issues. Pure GitHub API, no agent. Config: `DIGEST_CHANNEL` env var.
+
+## Structure
+```
+coda/
+├── app/
+│   ├── main.py          # AgentOS + Slack interface
+│   └── config.yaml      # Quick prompts config
+├── coda/
+│   ├── team.py           # Coda team definition (leader)
+│   ├── agents/
+│   │   ├── coder.py       # Coder agent
+│   │   ├── explorer.py    # Explorer agent
+│   │   ├── planner.py     # Planner agent
+│   │   ├── researcher.py  # Researcher agent
+│   │   └── triager.py     # Triager agent
+│   ├── settings.py       # Shared DB, paths, knowledge
+│   └── tools/
+│       └── git.py        # GitTools toolkit
+├── db/
+│   ├── session.py        # PostgreSQL session factory + knowledge factory
+│   └── url.py            # Database URL builder
+├── tasks/
+│   ├── sync_repos.py     # Repo sync (every 5 min)
+│   ├── review_issues.py  # Issue triage (daily)
+│   └── daily_digest.py   # Activity digest (daily)
+├── evals/
+│   ├── run.py            # Unified eval runner
+│   └── cases/            # Test cases by category (security, routing, exploration, synthesis, refusal)
+├── docs/
+│   ├── SPEC.md           # Canonical specification
+│   ├── GITHUB_ACCESS.md  # GitHub PAT setup guide
+│   └── SLACK_CONNECT.md  # Slack app setup guide
+├── scripts/
+├── compose.yaml
+├── Dockerfile
+├── repos.yaml            # Repository configuration
+├── pyproject.toml
+└── requirements.txt
+```
+
+## Running
+```bash
+docker compose up -d --build
+```
+
+Connect via Slack (see docs/SLACK_CONNECT.md) or CLI (`python -m coda`).
+
+## Setup Flow
+
+1. Clone repo
+2. Configure `.env` (OpenAI key, GitHub PAT)
+3. Configure `repos.yaml` (which repos to learn)
+4. Run locally (`docker compose up -d --build`)
+5. Connect to Slack (docs/SLACK_CONNECT.md — requires app to be running first)
+6. (Optional) Set `TRIAGE_CHANNEL` in `.env` for daily issue triage — see `docs/SPEC.md` § Daily Issue Triage
+7. Deploy to cloud (optional)
+8. Secure production (JWT_VERIFICATION_KEY from os.agno.com)
+
+## Local Development
+```bash
+./scripts/venv_setup.sh && source .venv/bin/activate
+docker compose up -d coda-db
+python -m coda  # CLI mode
+```
+
+## Commands
+```bash
+./scripts/venv_setup.sh && source .venv/bin/activate
+./scripts/format.sh      # Format code
+./scripts/validate.sh    # Lint + type check
+python -m coda           # CLI mode
+python -m evals.run                    # Run all evals
+python -m evals.run --category security  # Run single category
+python -m evals.run --verbose            # Show details
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `GITHUB_ACCESS_TOKEN` | Yes | Fine-grained PAT (Contents RW, PRs RW, Metadata R) |
+| `SLACK_TOKEN` | No | Slack bot token |
+| `SLACK_SIGNING_SECRET` | No | Slack request verification |
+| `DB_*` | No | Database config (defaults to localhost) |
+| `PARALLEL_API_KEY` | No | Parallel API key for web research (Researcher agent) |
+| `REPOS_DIR` | No | Path to cloned repos (default: /repos in Docker) |
+| `TRIAGE_CHANNEL` | No | Slack channel ID for daily issue triage (e.g. `C0ADMCGSJ8H`) |
+| `DIGEST_CHANNEL` | No | Slack channel ID for daily activity digest |
+| `JWT_VERIFICATION_KEY` | Production | RBAC public key from os.agno.com |
