@@ -20,6 +20,7 @@ from coda.agents.planner import planner
 from coda.agents.researcher import researcher
 from coda.agents.triager import triager
 from coda.team import coda
+from coda.workflows import CODA_WORKFLOWS
 from db import get_postgres_db
 from tasks.daily_digest import run_daily_digest
 
@@ -107,6 +108,7 @@ agent_os = AgentOS(
     db=get_postgres_db(),
     teams=[coda],
     agents=[a for a in [explorer, researcher, coder, planner, triager] if a is not None],
+    workflows=CODA_WORKFLOWS,
     interfaces=interfaces,
     config=str(Path(__file__).parent / "config.yaml"),
     lifespan=lifespan,

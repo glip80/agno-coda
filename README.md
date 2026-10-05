@@ -248,6 +248,30 @@ Week 4:  @Coda add a new endpoint for exporting invoices
 
 Coda's learning is powered by [Agno's Learning Machines](https://docs.agno.com/learning/overview?utm_source=github&utm_medium=example-repo&utm_campaign=agent-example&utm_content=coda&utm_term=docs).
 
+## Development Workflows
+
+Alongside the interactive team, Coda ships five [Agno workflows](https://docs.agno.com/examples/workflows/overview) — composable step graphs that run on AgentOS. Each exercises a different workflow primitive, so they double as working references. Find them in `coda/workflows/`.
+
+| Workflow | ID | Patterns | What it does |
+|----------|----|----------|--------------|
+| Daily Digest | `coda-daily-digest` | `Parallel` | Gathers merged PRs, open PRs, new issues, and stale issues concurrently, then posts a digest to `DIGEST_CHANNEL` |
+| PR Review | `coda-pr-review` | `Parallel` + human review | Reviews a PR for correctness, conventions, and security/tests in parallel, synthesises the findings, then posts the review after approval |
+| Issue Triage | `coda-issue-triage` | `Router` | Fetches recent issues and routes between a quiet report and a full triage branch, posting to `TRIAGE_CHANNEL` |
+| Feature Planning | `coda-feature-planning` | `Loop` + human review | Gathers code context, drafts an issue breakdown, refines it in a loop, then files GitHub issues after approval |
+| CI Health | `coda-ci-health` | `Parallel` + `Router` | Checks CI status, open PRs, and recent commits, then alerts on failures or posts a routine report |
+
+They are registered automatically in `app/main.py` and appear in the AgentOS UI. Run one from Python:
+
+```python
+from coda.workflows import daily_digest_workflow
+
+daily_digest_workflow.print_response("agno", stream=True)
+```
+
+Or over the AgentOS API — `POST /workflows/{workflow_id}/runs` (see `/docs`). Workflows that require approval pause and resume via `/workflows/{workflow_id}/runs/{run_id}/continue`; rejecting skips the guarded step.
+
+Workflow inputs are free text: a repository name (matched against `repos.yaml`; defaults to the only repo when one is configured), plus a PR number for `coda-pr-review`.
+
 ## What Coda Doesn't Do
 
 - **Auto-merge.** Coda opens PRs. A human merges them.

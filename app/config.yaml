@@ -4,3 +4,13 @@ chat:
       - "What repos are available? Give me a summary of each."
       - "What are your capabilities?"
       - "What are the open PRs and issues?"
+    coda-daily-digest:
+      - "agno"
+    coda-pr-review:
+      - "review PR #42 on agno"
+    coda-issue-triage:
+      - "triage agno"
+    coda-feature-planning:
+      - "plan rate limiting across the API on agno"
+    coda-ci-health:
+      - "is agno healthy?"
