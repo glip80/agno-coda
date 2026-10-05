@@ -7,7 +7,7 @@ Coda is a code companion that lives in Slack. Helps engineering teams understand
 ### Team Structure
 
 ```
-Coda (Team leader, Coordinate mode, gpt-5.6-sol)
+Coda (Team leader, Coordinate mode, local OpenAI-compatible model)
 ├── Coder — writes code in isolated worktrees, opens PRs
 ├── Explorer — searches code, reviews PRs/branches (read-only)
 ├── Planner — breaks feature requests into ordered GitHub issues
@@ -20,9 +20,9 @@ Coda (Team leader, Coordinate mode, gpt-5.6-sol)
 
 - **Framework:** Agno (AgentOS, Team, Agent)
 - **Interface:** Slack (via Agno Slack interface)
-- **Database:** PostgreSQL + pgvector (learnings only, not code indexing)
+- **Database:** PostgreSQL + pgvector (learnings + local RAG; code is still searched on disk, not indexed)
 - **Repos:** cloned to `/repos`, searched directly on disk (ephemeral in production, persistent volume in local dev)
-- **Model:** gpt-5.6-sol (all agents)
+- **Model:** local OpenAI-compatible model, configured via `MODEL_ID`/`OPENAI_BASE_URL` (all agents)
 
 ### Key Design Decisions
 
@@ -156,6 +156,38 @@ review, new issues, and stale issues. Pure GitHub API — no agent involved.
 - Set `DIGEST_CHANNEL` to the Slack channel ID.
 - Requires `GITHUB_ACCESS_TOKEN` and `SLACK_TOKEN`.
 - Repos are read from `repos.yaml`.
+
+### 12. Local RAG
+
+Standalone, fully-local document RAG backed by pgvector. Ingest web pages,
+embed them locally, and search the stored chunks. It is **not** wired into the
+agent team; no agent or Slack tool calls it. It is driven only through the CLI
+and the HTTP endpoints below.
+
+- **Embedding model:** BGE-M3 MLX served by oMLX, exact served id
+  `mlx-community--bge-m3-mlx-fp16` (1024 dimensions, 8192 context, multilingual)
+- **Endpoints:** oMLX `POST /v1/embeddings` and `GET /v1/models` at
+  `http://127.0.0.1:8000/v1`
+- **Env vars:** `EMBEDDING_MODEL_ID`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY`,
+  `EMBEDDING_DIMENSIONS`
+- **Storage:** `ai.coda_rag` (plus `coda_rag_contents`); `ai.coda_learnings` is
+  now migrated to `vector(1024)` to match the local embedder
+- **Default read:** a single page (`max_depth=1`, `max_links=1`); raise both for
+  a bounded crawl
+
+**CLI:**
+
+```bash
+python -m coda.rag ingest <url> [--max-depth N] [--max-links N] [--chunk-size N]
+python -m coda.rag search <query> [--k N]
+python -m coda.rag list
+python -m coda.rag reset
+```
+
+**API:**
+
+- `POST /rag/ingest`: body `{url, max_depth, max_links}`
+- `GET /rag/search?q=&k=`: returns matching chunks with source URLs
 
 ## Agents
 
