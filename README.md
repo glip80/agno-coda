@@ -256,8 +256,8 @@ Alongside the interactive team, Coda ships five [Agno workflows](https://docs.ag
 |----------|----|----------|--------------|
 | Daily Digest | `coda-daily-digest` | `Parallel` | Gathers merged PRs, open PRs, new issues, and stale issues concurrently, then posts a digest to `DIGEST_CHANNEL` |
 | PR Review | `coda-pr-review` | `Parallel` + human review | Reviews a PR for correctness, conventions, and security/tests in parallel, synthesises the findings, then posts the review after approval |
-| Issue Triage | `coda-issue-triage` | `Router` | Fetches recent issues and routes between a quiet report and a full triage branch, posting to `TRIAGE_CHANNEL` |
-| Feature Planning | `coda-feature-planning` | `Loop` + human review | Gathers code context, drafts an issue breakdown, refines it in a loop, then files GitHub issues after approval |
+| Issue Triage | `coda-issue-triage` | `Router` | Triages recent **Jira tasks** (label + comment, never close) and routes between a quiet report and a summary in `TRIAGE_CHANNEL` |
+| Feature Planning | `coda-feature-planning` | `Loop` + human review | Gathers code + **Confluence** context, drafts a breakdown, refines it in a loop, then files **Jira tasks** after approval |
 | CI Health | `coda-ci-health` | `Parallel` + `Router` | Checks CI status, open PRs, and recent commits, then alerts on failures or posts a routine report |
 
 They are registered automatically in `app/main.py` and appear in the AgentOS UI. Run one from Python:
@@ -271,6 +271,8 @@ daily_digest_workflow.print_response("agno", stream=True)
 Or over the AgentOS API — `POST /workflows/{workflow_id}/runs` (see `/docs`). Workflows that require approval pause and resume via `/workflows/{workflow_id}/runs/{run_id}/continue`; rejecting skips the guarded step.
 
 Workflow inputs are free text: a repository name (matched against `repos.yaml`; defaults to the only repo when one is configured), plus a PR number for `coda-pr-review`.
+
+Two of these workflows use Atlassian instead of GitHub. **Issue Triage** and **Feature Planning** act on **Jira tasks** and search **Confluence** for context through the community [`mcp-atlassian`](https://github.com/sooperset/mcp-atlassian) MCP server over stdio. Set the `JIRA_*` / `CONFLUENCE_*` variables in `.env` (see `example.env`); the server is launched with `ATLASSIAN_MCP_COMMAND` (default `uvx mcp-atlassian`). These steps are async because MCP connections only open on the async path.
 
 ## What Coda Doesn't Do
 
@@ -382,6 +384,14 @@ the [Environment Variables](#environment-variables) table.
 | `REPOS_DIR` | No | Path to cloned repos (default: /repos) |
 | `TRIAGE_CHANNEL` | No | Slack channel ID for daily issue triage |
 | `DIGEST_CHANNEL` | No | Slack channel ID for daily activity digest |
+| `JIRA_URL` | No | Jira base URL (enables Jira task triage/creation) |
+| `JIRA_USERNAME` | No | Jira account email |
+| `JIRA_API_TOKEN` | No | Jira API token |
+| `JIRA_PROJECT_KEY` | No | Default Jira project for created tasks |
+| `CONFLUENCE_URL` | No | Confluence base URL (enables read-only knowledge search) |
+| `CONFLUENCE_USERNAME` | No | Confluence account email |
+| `CONFLUENCE_API_TOKEN` | No | Confluence API token |
+| `ATLASSIAN_MCP_COMMAND` | No | MCP server launch command (default `uvx mcp-atlassian`) |
 | `JWT_VERIFICATION_KEY` | Production | RBAC public key from [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-example&utm_content=coda&utm_term=agentos) |
 
 ## Security

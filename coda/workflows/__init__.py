@@ -8,8 +8,8 @@ composable graph of steps built from the patterns in the Agno workflow examples:
 
     daily_digest_workflow      — parallel repo activity → Slack digest
     pr_review_workflow         — parallel review → synthesize → approve → post
-    issue_triage_workflow      — fetch → router(quiet | triage) → Slack
-    feature_planning_workflow  — context → plan → loop refine → approve → file issues
+    issue_triage_workflow      — triage Jira tasks → router(quiet | summary) → Slack
+    feature_planning_workflow  — code + Confluence context → plan → loop refine → approve → Jira tasks
     ci_health_workflow         — parallel health checks → router(alert | report)
 
 Register them on AgentOS by importing `CODA_WORKFLOWS`.

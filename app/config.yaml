@@ -9,7 +9,7 @@ chat:
     coda-pr-review:
       - "review PR #42 on agno"
     coda-issue-triage:
-      - "triage agno"
+      - "triage the open Jira tasks"
     coda-feature-planning:
       - "plan rate limiting across the API on agno"
     coda-ci-health:
