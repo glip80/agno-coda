@@ -10,6 +10,7 @@ authors = [{ name = "Agno", email = "hello@agno.com" }]
 dependencies = [
     "agno[os]==2.7.0",
     "aiohttp",
+    "beautifulsoup4",
     "openai",
     "parallel-web",
     "pgvector",
@@ -19,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "ruff"]
+dev = ["mypy", "ruff", "pytest>=8"]
 
 [build-system]
 requires = ["setuptools"]

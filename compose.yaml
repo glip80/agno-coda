@@ -38,6 +38,10 @@ services:
       - DB_PASS=${DB_PASS:-ai}
       - DB_DATABASE=${DB_DATABASE:-ai}
       - WAIT_FOR_DB=True
+      - EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID:-mlx-community--bge-m3-mlx-fp16}
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL_DOCKER:-http://host.docker.internal:8000/v1}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-not-needed}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1024}
       # API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GITHUB_ACCESS_TOKEN=${GITHUB_ACCESS_TOKEN:-}

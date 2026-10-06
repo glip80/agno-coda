@@ -13,12 +13,16 @@ from os import getenv
 from pathlib import Path
 
 from agno.os import AgentOS
+from fastapi import HTTPException
+from pydantic import BaseModel
 
 from coda.agents.coder import coder
 from coda.agents.explorer import explorer
 from coda.agents.planner import planner
 from coda.agents.researcher import researcher
 from coda.agents.triager import triager
+from coda.rag import ingest_url
+from coda.rag.knowledge import search as rag_search
 from coda.team import coda
 from coda.workflows import CODA_WORKFLOWS
 from db import get_postgres_db
@@ -140,6 +144,31 @@ def daily_digest() -> dict[str, str]:
     """Run daily activity digest — merged PRs, open PRs, new/stale issues."""
     run_daily_digest()
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# RAG endpoints (standalone local-oMLX knowledge base — see coda/rag)
+# ---------------------------------------------------------------------------
+class RagIngestRequest(BaseModel):
+    url: str
+    max_depth: int = 1
+    max_links: int = 1
+
+
+@app.post("/rag/ingest")
+def rag_ingest(req: RagIngestRequest) -> dict[str, str]:
+    """Ingest a URL into the RAG knowledge base."""
+    try:
+        ingest_url(req.url, max_depth=req.max_depth, max_links=req.max_links)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"RAG ingest failed: {exc}") from exc
+    return {"status": "ok", "url": req.url}
+
+
+@app.get("/rag/search")
+def rag_search_endpoint(q: str, k: int = 5) -> dict:
+    """Search the RAG knowledge base."""
+    return {"query": q, "results": rag_search(q, k)}
 
 
 if __name__ == "__main__":

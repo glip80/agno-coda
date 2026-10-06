@@ -331,11 +331,45 @@ python -m evals.run --category security
 ./scripts/validate.sh
 ```
 
+## Local RAG
+
+Coda ships a standalone, fully-local document RAG backed by pgvector. It is not
+wired into the agent team. You drive it yourself through the CLI or the HTTP
+endpoints. Embeddings come from BGE-M3 MLX served by oMLX.
+
+Download the embedding model and restart oMLX so it picks it up (oMLX only scans
+the Hugging Face cache at startup):
+
+```bash
+hf download mlx-community/bge-m3-mlx-fp16
+omlx restart
+```
+
+Ingest a page and search it:
+
+```bash
+python -m coda.rag ingest https://example.com/docs
+python -m coda.rag search "how does auth work"
+```
+
+The same operations are available over HTTP:
+
+- `POST /rag/ingest`: body `{url, max_depth, max_links}`
+- `GET /rag/search?q=&k=`
+
+Ingest reads a single page by default (`max_depth=1`, `max_links=1`); raise both
+for a bounded crawl. Configure the embedder with the `EMBEDDING_*` variables in
+the [Environment Variables](#environment-variables) table.
+
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `EMBEDDING_MODEL_ID` | No | Served embedding model name (default: `mlx-community--bge-m3-mlx-fp16`) |
+| `EMBEDDING_BASE_URL` | No | Embedding OpenAI-compatible API base (default: `http://127.0.0.1:8000/v1`) |
+| `EMBEDDING_API_KEY` | No | Embedding API key; local servers ignore it (default: `not-needed`) |
+| `EMBEDDING_DIMENSIONS` | No | Embedding vector size (default: `1024`) |
 | `GITHUB_ACCESS_TOKEN` | Yes | Fine-grained PAT ([setup guide](docs/GITHUB_ACCESS.md)) |
 | `SLACK_TOKEN` | No | Slack bot token ([setup guide](docs/SLACK_CONNECT.md)) |
 | `SLACK_SIGNING_SECRET` | No | Slack request verification |
